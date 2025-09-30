@@ -2,6 +2,8 @@
 
 A modern, responsive video summary website for the "Bald Foodie Guy" channel, featuring honest supermarket food reviews. Built with React, Vite, and Node.js.
 
+🔄 **Continuous Deployment**: Automatically deploys to Vercel when changes are pushed to GitHub.
+
 ##  Features
 
 - **Video Summaries**: Quick browse through supermarket food reviews
