@@ -86,10 +86,10 @@ export default async function handler(req, res) {
       const { page = 1, limit = 12, search = '' } = query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
-      let query = {};
+      let mongoQuery = {};
       
       if (search) {
-        query = {
+        mongoQuery = {
           $or: [
             { Title: { $regex: search, $options: 'i' } },
             { Summary: { $regex: search, $options: 'i' } },
@@ -98,12 +98,12 @@ export default async function handler(req, res) {
         };
       }
 
-      const videos = await Video.find(query)
+      const videos = await Video.find(mongoQuery)
         .sort({ PublishedUtc: -1 })
         .skip(skip)
         .limit(parseInt(limit));
 
-      const total = await Video.countDocuments(query);
+      const total = await Video.countDocuments(mongoQuery);
 
       const transformedVideos = videos.map(video => ({
         id: video._id,
