@@ -40,7 +40,7 @@ connectDB();
 
 // Handle connection events
 mongoose.connection.on('error', (error) => {
-  console.error('MongoDB connection error:', error);
+  console.error(`MongoDB connection error when trying to connect to ${process.env.MONGODB_URI}:`, error);
 });
 
 mongoose.connection.on('disconnected', () => {
