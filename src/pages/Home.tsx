@@ -1,14 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Play, Clock } from 'lucide-react';
+import { Play, Clock, Sparkles } from 'lucide-react';
 import { getVideos, type Video } from '../services/api';
+import SearchBar from '../components/SearchBar';
 
 const Home = () => {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const [isVectorSearch, setIsVectorSearch] = useState<boolean>(false);
 
-  const fetchVideos = async () => {
+  const fetchVideos = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -29,7 +32,25 @@ const Home = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Handle search results from SearchBar
+  const handleSearchResults = useCallback((results: Video[], term?: string) => {
+    if (results.length === 0 && (!term || term.trim() === '')) {
+      // If no results and no search term, reload initial videos
+      fetchVideos();
+    } else {
+      setVideos(results);
+      setSearchTerm(term || '');
+      setIsVectorSearch(true); // Always AI search since we removed text search
+      setError(null);
+    }
+  }, [fetchVideos]);
+
+  // Handle loading state from SearchBar
+  const handleSearchLoading = useCallback((isLoading: boolean) => {
+    setLoading(isLoading);
+  }, []);
 
   useEffect(() => {
     fetchVideos();
@@ -51,9 +72,25 @@ const Home = () => {
         </button>
       </section>
 
-      {/* Latest Videos */}
+      {/* Search Section */}
+      <SearchBar 
+        onResults={handleSearchResults}
+        onLoading={handleSearchLoading}
+      />
+
+      {/* Videos Section */}
       <section>
-        <h2 className="font-display text-3xl font-bold text-gray-900 mb-8">Latest Videos</h2>
+        <h2 className="font-display text-3xl font-bold text-gray-900 mb-8">
+          {searchTerm 
+            ? `Search Results ${isVectorSearch ? '(AI Search)' : '(Text Search)'}`
+            : 'Latest Videos'
+          }
+          {searchTerm && (
+            <span className="text-lg font-normal text-gray-600 ml-2">
+              for "{searchTerm}"
+            </span>
+          )}
+        </h2>
         
         {loading ? (
           <div className="text-center py-8">
@@ -101,9 +138,17 @@ const Home = () => {
                   <p className="text-gray-600 text-sm mb-3 line-clamp-3">
                     {video.description}
                   </p>
-                  <div className="flex items-center text-sm text-gray-500">
-                    <Clock className="h-4 w-4 mr-1" />
-                    <span>{new Date(video.publishedAt).toLocaleDateString()}</span>
+                  <div className="flex items-center justify-between text-sm text-gray-500">
+                    <div className="flex items-center">
+                      <Clock className="h-4 w-4 mr-1" />
+                      <span>{new Date(video.publishedAt).toLocaleDateString()}</span>
+                    </div>
+                    {video.similarity && (
+                      <div className="flex items-center space-x-1 bg-purple-100 text-purple-700 px-2 py-1 rounded-full text-xs">
+                        <Sparkles className="h-3 w-3" />
+                        <span>{Math.round(video.similarity * 100)}%</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </Link>

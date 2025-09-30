@@ -19,6 +19,7 @@ export interface Video {
   embedUrl: string;
   publishedAt: string;
   updatedAt: string;
+  similarity?: number; // For vector search results
 }
 
 export interface VideosResponse {
@@ -32,18 +33,32 @@ export interface VideosResponse {
   };
 }
 
+export interface VectorSearchResponse {
+  success: boolean;
+  data: Video[];
+  query: string;
+  resultsCount: number;
+}
+
 export interface VideoResponse {
   success: boolean;
   data: Video;
 }
 
-// Get all videos with optional search and pagination
+// Get all videos with pagination (initial load only)
 export const getVideos = async (params?: {
   page?: number;
   limit?: number;
-  search?: string;
 }): Promise<VideosResponse> => {
   const response = await api.get('/videos', { params });
+  return response.data;
+};
+
+// Vector search for videos
+export const vectorSearchVideos = async (query: string, limit = 10): Promise<VectorSearchResponse> => {
+  const response = await api.get('/search/vector', { 
+    params: { q: query, limit } 
+  });
   return response.data;
 };
 
@@ -56,5 +71,11 @@ export const getVideoById = async (id: string): Promise<VideoResponse> => {
 // Health check
 export const healthCheck = async () => {
   const response = await api.get('/health');
+  return response.data;
+};
+
+// Check vector search status
+export const getVectorSearchStatus = async () => {
+  const response = await api.get('/search/status');
   return response.data;
 };

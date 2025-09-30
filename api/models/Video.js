@@ -28,13 +28,14 @@ const videoSchema = new mongoose.Schema({
   UpdatedUtc: {
     type: Date,
     required: true
+  },
+  Embeddings: {
+    type: [Number], // Array of numbers for the embedding vector
+    select: false // Don't include in queries by default
   }
 }, {
   collection: 'video_summaries', // Specify the collection name
   _id: false // We're using custom _id
 });
-
-// Index for search functionality
-videoSchema.index({ Title: 'text', Summary: 'text', LongSummary: 'text' });
 
 export default mongoose.model('Video', videoSchema);
