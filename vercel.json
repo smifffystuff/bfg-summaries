@@ -1,7 +1,15 @@
 {
   "rewrites": [
     {
-      "source": "/api/(.*)",
+      "source": "/api/health",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/api/videos",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/api/videos/(.*)",
       "destination": "/api/index.js"
     }
   ]

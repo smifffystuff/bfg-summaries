@@ -54,12 +54,25 @@ export default async function handler(req, res) {
 
     const { url, query } = req;
     
-    // Extract the path after /api/
-    const path = url.replace('/api/', '');
+    // Debug: log the URL to understand the routing
+    console.log('Request URL:', url);
+    console.log('Query params:', query);
+    
+    // Extract the path - handle various URL formats
+    let path = url;
+    if (path.startsWith('/api/')) {
+      path = path.replace('/api/', '');
+    }
+    // Remove leading slash if present
+    if (path.startsWith('/')) {
+      path = path.substring(1);
+    }
+    
+    console.log('Processed path:', path);
     
     // Health check endpoint
-    if (path === 'health') {
-      return res.json({ status: 'OK', message: 'BFG Showcase API is running' });
+    if (path === 'health' || path === '' || path === 'index') {
+      return res.json({ status: 'OK', message: 'BFG Showcase API is running', path: path, originalUrl: url });
     }
     
     // Get all videos
