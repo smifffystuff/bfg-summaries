@@ -52,7 +52,8 @@ export default async function handler(req, res) {
     // Connect to database
     await connectDB();
 
-    const { url, query } = req;
+    const { url } = req;
+    const query = req.query || {};
     
     // Debug: log the URL to understand the routing
     console.log('Request URL:', url);
