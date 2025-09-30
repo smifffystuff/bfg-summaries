@@ -52,16 +52,19 @@ export default async function handler(req, res) {
     // Connect to database
     await connectDB();
 
-    const { url } = req;
+    const { url, query } = req;
+    
+    // Extract the path after /api/
+    const path = url.replace('/api/', '');
     
     // Health check endpoint
-    if (url === '/api/health') {
+    if (path === 'health') {
       return res.json({ status: 'OK', message: 'BFG Showcase API is running' });
     }
     
     // Get all videos
-    if (url === '/api/videos' && req.method === 'GET') {
-      const { page = 1, limit = 12, search = '' } = req.query;
+    if (path === 'videos' && req.method === 'GET') {
+      const { page = 1, limit = 12, search = '' } = query;
       const skip = (parseInt(page) - 1) * parseInt(limit);
 
       let query = {};
@@ -108,8 +111,8 @@ export default async function handler(req, res) {
     }
     
     // Get single video by ID
-    if (url && url.startsWith('/api/videos/') && req.method === 'GET') {
-      const id = url.split('/api/videos/')[1];
+    if (path && path.startsWith('videos/') && req.method === 'GET') {
+      const id = path.split('videos/')[1];
       
       const video = await Video.findById(id);
       
