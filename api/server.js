@@ -37,17 +37,15 @@ const connectDB = async () => {
     
     // Configure mongoose for serverless
     mongoose.set('bufferCommands', false);
-    mongoose.set('bufferMaxEntries', 0);
     
     // Connect with optimized settings for serverless
     const connection = await mongoose.connect(process.env.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000, // Reduced timeout for serverless
+      serverSelectionTimeoutMS: 8000, // Timeout for serverless
       socketTimeoutMS: 45000,
-      maxPoolSize: 10, // Limit connection pool size
+      maxPoolSize: 5, // Limit connection pool size for serverless
       minPoolSize: 0,
       maxIdleTimeMS: 30000,
-      bufferCommands: false,
-      bufferMaxEntries: 0
+      bufferCommands: false
     });
     
     console.log('✅ Connected to MongoDB');
@@ -187,7 +185,7 @@ app.get('/api/videos/:id', async (req, res) => {
   }
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 
 // Start server in development mode
 if (!process.env.VERCEL) {
