@@ -60,6 +60,11 @@ export default async function handler(req, res) {
     
     // Extract the path - handle various URL formats
     let path = url;
+    // Remove query string if present
+    if (path.includes('?')) {
+      path = path.split('?')[0];
+    }
+    // Remove /api prefix
     if (path.startsWith('/api/')) {
       path = path.replace('/api/', '');
     }
