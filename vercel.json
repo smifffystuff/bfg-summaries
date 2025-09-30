@@ -11,6 +11,14 @@
     {
       "source": "/api/videos/(.*)",
       "destination": "/api/index.js"
+    },
+    {
+      "source": "/api/search/vector",
+      "destination": "/api/index.js"
+    },
+    {
+      "source": "/api/search/status",
+      "destination": "/api/index.js"
     }
   ]
 }

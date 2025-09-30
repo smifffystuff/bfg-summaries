@@ -1,5 +1,13 @@
 import mongoose from 'mongoose';
 import Video from './models/Video.js';
+import { vectorSearch } from './services/vectorSearch.js';
+import { existsSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+
+// Get the directory of the current module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Global MongoDB connection variable
 let cachedConnection = null;
@@ -129,6 +137,93 @@ export default async function handler(req, res) {
       });
     }
     
+    // Vector search status endpoint
+    if (path === 'search/status' && req.method === 'GET') {
+      const hasOpenAI = !!process.env.OPENAI_API_KEY;
+      const videoWithEmbedding = await Video.findOne({ Embeddings: { $exists: true, $ne: null } });
+      const hasEmbeddings = !!videoWithEmbedding;
+      const totalVideos = await Video.countDocuments();
+      const videosWithEmbeddings = await Video.countDocuments({ Embeddings: { $exists: true, $ne: null } });
+
+      // Detailed diagnostics
+      const diagnostics = {
+        environment: {
+          nodeEnv: process.env.NODE_ENV || 'development',
+          hasEnvFile: existsSync(join(__dirname, '..', '.env')),
+          openaiKeySet: hasOpenAI,
+          openaiKeyLength: process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.length : 0,
+          mongoConnected: mongoose.connection.readyState === 1
+        },
+        database: {
+          totalVideos,
+          videosWithEmbeddings,
+          embeddingCoverage: totalVideos > 0 ? (videosWithEmbeddings / totalVideos * 100).toFixed(1) + '%' : '0%',
+          sampleVideoIds: await Video.find({}, { _id: 1 }).limit(3).then(videos => videos.map(v => v._id))
+        }
+      };
+      
+      return res.json({
+        success: true,
+        vectorSearch: {
+          available: hasOpenAI && hasEmbeddings,
+          openaiConfigured: hasOpenAI,
+          embeddingsExist: hasEmbeddings,
+          totalVideos,
+          videosWithEmbeddings,
+          embeddingCoverage: totalVideos > 0 ? (videosWithEmbeddings / totalVideos * 100).toFixed(1) + '%' : '0%'
+        },
+        diagnostics
+      });
+    }
+
+    // Vector search endpoint
+    if (path === 'search/vector' && req.method === 'GET') {
+      const { q: searchQuery, limit = 10, numCandidates = 100 } = query;
+      
+      if (!searchQuery || typeof searchQuery !== 'string' || searchQuery.trim().length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Search query is required'
+        });
+      }
+
+      console.log('Vector search query:', searchQuery);
+      
+      // Check if OpenAI API key is available
+      if (!process.env.OPENAI_API_KEY) {
+        console.error('OPENAI_API_KEY not found in environment variables');
+        return res.status(503).json({
+          success: false,
+          error: 'Vector search is not available - missing OpenAI API key',
+          details: 'Please set OPENAI_API_KEY environment variable'
+        });
+      }
+
+      // Check if any videos have embeddings
+      const videoWithEmbedding = await Video.findOne({ Embeddings: { $exists: true, $ne: null } });
+      if (!videoWithEmbedding) {
+        console.log('No videos with embeddings found');
+        return res.status(503).json({
+          success: false,
+          error: 'Vector search is not available - no embeddings found',
+          details: 'Please ensure embeddings are created in your external system and populated in the database'
+        });
+      }
+      
+      const results = await vectorSearch(
+        searchQuery.trim(),
+        parseInt(limit),
+        parseInt(numCandidates)
+      );
+
+      return res.json({
+        success: true,
+        data: results,
+        query: searchQuery.trim(),
+        resultsCount: results.length
+      });
+    }
+
     // Get single video by ID
     if (path && path.startsWith('videos/') && req.method === 'GET') {
       const id = path.split('videos/')[1];
