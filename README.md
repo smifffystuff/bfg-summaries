@@ -1,4 +1,4 @@
-﻿# BFG Showcase - Bald Foodie Guy Video Summaries
+﻿# Bald Foodie Guy Showcase - Bald Foodie Guy Video Summaries
 
 A modern, responsive video summary website for the "Bald Foodie Guy" channel, featuring honest supermarket food reviews. Built with React, Vite, and Node.js.
 
