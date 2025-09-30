@@ -9,8 +9,10 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load .env from the project root (parent directory)
-dotenv.config({ path: join(__dirname, '..', '.env') });
+// Load .env from the project root (parent directory) only in development
+if (!process.env.VERCEL) {
+  dotenv.config({ path: join(__dirname, '..', '.env') });
+}
 
 const app = express();
 
@@ -18,33 +20,55 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// MongoDB connection with better error handling
+// Global MongoDB connection variable
+let cachedConnection = null;
+
+// MongoDB connection optimized for serverless
 const connectDB = async () => {
+  // If we have a cached connection that's ready, use it
+  if (cachedConnection && mongoose.connection.readyState === 1) {
+    return cachedConnection;
+  }
+
   try {
     if (!process.env.MONGODB_URI) {
-      console.warn('⚠️  MONGODB_URI not found in environment variables. Please update your .env file.');
-      console.warn('   Video endpoints will return errors until MongoDB is connected.');
-      return;
+      throw new Error('MONGODB_URI not found in environment variables');
     }
     
-    await mongoose.connect(process.env.MONGODB_URI);
+    // Configure mongoose for serverless
+    mongoose.set('bufferCommands', false);
+    mongoose.set('bufferMaxEntries', 0);
+    
+    // Connect with optimized settings for serverless
+    const connection = await mongoose.connect(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000, // Reduced timeout for serverless
+      socketTimeoutMS: 45000,
+      maxPoolSize: 10, // Limit connection pool size
+      minPoolSize: 0,
+      maxIdleTimeMS: 30000,
+      bufferCommands: false,
+      bufferMaxEntries: 0
+    });
+    
     console.log('✅ Connected to MongoDB');
+    cachedConnection = connection;
+    return connection;
   } catch (error) {
     console.error('❌ MongoDB connection error:', error.message);
-    console.warn('   Server will continue running, but video endpoints will not work.');
+    cachedConnection = null;
+    throw error;
   }
 };
 
-// Connect to database
-connectDB();
-
 // Handle connection events
 mongoose.connection.on('error', (error) => {
-  console.error(`MongoDB connection error when trying to connect to ${process.env.MONGODB_URI}:`, error);
+  console.error('MongoDB connection error:', error.message);
+  cachedConnection = null;
 });
 
 mongoose.connection.on('disconnected', () => {
   console.warn('MongoDB disconnected');
+  cachedConnection = null;
 });
 
 // Import models
@@ -58,14 +82,8 @@ app.get('/api/health', (req, res) => {
 // Get all videos with pagination and search
 app.get('/api/videos', async (req, res) => {
   try {
-    // Check if MongoDB is connected
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({
-        success: false,
-        error: 'Database not connected. Please check MongoDB connection string in .env file.',
-        hint: 'Update MONGODB_URI in your .env file with your MongoDB Atlas connection string.'
-      });
-    }
+    // Ensure MongoDB is connected
+    await connectDB();
 
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 12;
@@ -130,14 +148,8 @@ app.get('/api/videos', async (req, res) => {
 // Get single video by ID
 app.get('/api/videos/:id', async (req, res) => {
   try {
-    // Check if MongoDB is connected
-    if (mongoose.connection.readyState !== 1) {
-      return res.status(503).json({
-        success: false,
-        error: 'Database not connected. Please check MongoDB connection string in .env file.',
-        hint: 'Update MONGODB_URI in your .env file with your MongoDB Atlas connection string.'
-      });
-    }
+    // Ensure MongoDB is connected
+    await connectDB();
 
     const video = await Video.findById(req.params.id);
     
@@ -179,6 +191,9 @@ const PORT = process.env.PORT || 3001;
 
 // Start server in development mode
 if (!process.env.VERCEL) {
+  // Connect to database in development
+  connectDB().catch(console.error);
+  
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
